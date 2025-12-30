@@ -78,6 +78,7 @@ class ARCDataset(Dataset):
                 if src < 12: lookup[src] = dst
             
             g_aug = lookup[g] # Vectorized O(1) replacement provided g are indices
+            return g_aug.tolist()
 
         new_task = {'train': [], 'test': []}
         for pair in task['train']:
