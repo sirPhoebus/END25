@@ -9,6 +9,8 @@ import numpy as np
 import sys
 import logging
 
+logging.basicConfig(level=logging.INFO)
+
 print(f"Python: {sys.executable}")
 print(f"Torch: {torch.__version__}")
 print(f"CUDA Available: {torch.cuda.is_available()}")
