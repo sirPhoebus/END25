@@ -31,6 +31,11 @@ def train(args):
     # Model
     model = HybridTRM(dim=args.dim, layers=args.layers).to(device)
     
+    # Optimize for H100
+    if torch.cuda.get_device_capability()[0] >= 7: # Volta or newer
+        print("Enabling torch.compile() for H100 Acceleration...")
+        model = torch.compile(model)
+    
     if args.resume:
         print(f"Resuming from checkpoint: {args.resume}")
         try:
