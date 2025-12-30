@@ -47,6 +47,8 @@ def train(args):
     ce_loss_fn = nn.CrossEntropyLoss(reduction='none') 
     bce_loss_fn = nn.BCEWithLogitsLoss()
     
+    scaler = torch.cuda.amp.GradScaler()
+
     print("Starting training...")
     for epoch in range(args.epochs):
         model.train()
@@ -73,7 +75,8 @@ def train(args):
             # 1. Encode Support (Context Priming) - ONCE per batch (invariant context)
             z_global_init = None
             if support_pairs is not None:
-                z_global_init = model.encode_support(support_pairs)
+                with torch.cuda.amp.autocast():
+                    z_global_init = model.encode_support(support_pairs)
             
             # --- IMPL: Multi-View Consistency Loss (Omnidirectional) ---
             # Instead of just one forward pass, we do 4 (0, 90, 180, 270)
@@ -86,18 +89,19 @@ def train(args):
             # Or simpler: compute total loss then backward once (autograd handles it)
             
             for k in [0, 1, 2, 3]: # 4 Rotations
-                # Rotate Input and Target k times (90 degrees)
-                x_rot = torch.rot90(x, k, [1, 2])
-                target_rot = torch.rot90(target, k, [1, 2])
-                mask_rot = torch.rot90(mask, k, [1, 2])
-                
-                # Context: Ideally context is invariant. 
-                # If we rotate input, does context change? 
-                # Our 'encode_support' is NOT rotation invariant unless providing rotated support.
-                # For now, we assume z_global_init is a "concept" and reuse it. 
-                # (Refinement: We could rotate z_global_init? No, it's latent).
-                
-                y_preds, critic_scores = model(x_rot, initial_state=z_global_init) 
+                with torch.cuda.amp.autocast():
+                    # Rotate Input and Target k times (90 degrees)
+                    x_rot = torch.rot90(x, k, [1, 2])
+                    target_rot = torch.rot90(target, k, [1, 2])
+                    mask_rot = torch.rot90(mask, k, [1, 2])
+                    
+                    # Context: Ideally context is invariant. 
+                    # If we rotate input, does context change? 
+                    # Our 'encode_support' is NOT rotation invariant unless providing rotated support.
+                    # For now, we assume z_global_init is a "concept" and reuse it. 
+                    # (Refinement: We could rotate z_global_init? No, it's latent).
+                    
+                    y_preds, critic_scores = model(x_rot, initial_state=z_global_init) 
                 
                 steps = len(y_preds)
                 view_loss = 0
@@ -129,9 +133,12 @@ def train(args):
             # Average loss over 4 views
             total_view_loss = views_loss / 4.0
             
-            total_view_loss.backward()
+        # Backward with Scaling
+            scaler.scale(total_view_loss).backward()
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             
             total_loss += total_view_loss.item()
             total_acc += final_acc_step
