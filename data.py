@@ -70,9 +70,14 @@ class ARCDataset(Dataset):
             if flip_axis is not None:
                 g = np.flip(g, axis=flip_axis)
             g_aug = np.zeros_like(g)
+            
+            # Fast Vectorized Color Map
+            # Helper: Create a lookup table (0-10)
+            lookup = np.arange(12, dtype=int) 
             for src, dst in color_map.items():
-                g_aug[g == src] = dst
-            return g_aug.tolist()
+                if src < 12: lookup[src] = dst
+            
+            g_aug = lookup[g] # Vectorized O(1) replacement provided g are indices
 
         new_task = {'train': [], 'test': []}
         for pair in task['train']:

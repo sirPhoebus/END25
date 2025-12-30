@@ -68,3 +68,6 @@ The model does not output a solution in one pass. It iterates for `k` steps (def
 ### 5. Running
 *   **Train**: `run_train.bat`
 *   **Benchmark**: `inference.bat`
+
+**H100**
+python train.py --epochs 2000 --layers 12 --dim 512 --batch_size 8 --lr 1e-4 --data_path ARC-AGI/data/training
