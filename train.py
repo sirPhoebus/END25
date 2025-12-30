@@ -7,6 +7,7 @@ import os
 import argparse
 import numpy as np
 import sys
+import logging
 
 print(f"Python: {sys.executable}")
 print(f"Torch: {torch.__version__}")
@@ -32,8 +33,11 @@ def train(args):
     model = HybridTRM(dim=args.dim, layers=args.layers).to(device)
     
     # Optimize for H100
-    if torch.cuda.get_device_capability()[0] >= 7: # Volta or newer
+    # Optimize for H100
+    if not args.no_compile and torch.cuda.get_device_capability()[0] >= 7: # Volta or newer
         print("Enabling torch.compile() for H100 Acceleration...")
+        # Enable logs so user sees progress
+        torch._logging.set_logs(inductor=logging.INFO)
         model = torch.compile(model)
     
     if args.resume:
@@ -172,6 +176,7 @@ if __name__ == "__main__":
     parser.add_argument('--layers', type=int, default=4)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--no_compile', action='store_true', help="Disable torch.compile")
     
     # ComfyUI-style arguments
     parser.add_argument('--windows-standalone-build', action='store_true', help="Windows standalone build flag")
