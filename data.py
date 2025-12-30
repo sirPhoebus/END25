@@ -162,4 +162,4 @@ class ARCDataset(Dataset):
 def get_loader(path, batch_size=16, mode='train', augment=True):
     shuffle = (mode == 'train')
     ds = ARCDataset(path, mode=mode, augment=augment)
-    return DataLoader(ds, batch_size=batch_size, shuffle=shuffle)
+    return DataLoader(ds, batch_size=batch_size, shuffle=shuffle, num_workers=4, pin_memory=True)
